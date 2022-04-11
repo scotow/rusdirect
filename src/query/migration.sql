@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS redirections (
+    id TEXT NOT NULL PRIMARY KEY,
+    target TEXT NOT NULL,
+    creation INTEGER NOT NULL
+);
