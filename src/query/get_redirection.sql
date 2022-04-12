@@ -1,3 +1,3 @@
 SELECT target
 FROM redirections
-WHERE id = ?;
+WHERE path = ?;

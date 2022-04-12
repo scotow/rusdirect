@@ -1,2 +1,2 @@
-INSERT OR REPLACE INTO redirections(id, target, creation)
+INSERT OR REPLACE INTO redirections(path, target, expiration)
 VALUES(?, ?, ?);

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.17.0", features = ["macros", "sync", "rt-multi-thread"] }
 axum = "0.5.1"
-sqlx = { version = "0.5.11", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "macros"] }
+sqlx = { version = "0.5.11", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "macros", "time"] }
 log = "0.4.16"
 serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1.0.30"
