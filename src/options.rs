@@ -1,7 +1,8 @@
-use clap::Parser;
-use log::LevelFilter;
 use std::net::IpAddr;
 use std::time::Duration;
+
+use clap::Parser;
+use log::LevelFilter;
 
 #[derive(Parser, Debug)]
 pub struct Options {
