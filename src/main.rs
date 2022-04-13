@@ -29,7 +29,7 @@ async fn main() {
             SqliteConnectOptions::new()
                 .filename("rusdirect.db")
                 .create_if_missing(true)
-                .busy_timeout(Duration::from_secs(30)),
+                .busy_timeout(Duration::from_secs(15)),
         )
         .await
         .unwrap_or_else(|err| exit_error!("database pool creation failure: {}", err));
@@ -41,7 +41,7 @@ async fn main() {
     let cleaner_pool = pool.clone();
     tokio::task::spawn(async move {
         let cleaner = ExpirationCleaner {
-            interval: Duration::from_secs(5 * 60),
+            interval: options.clean_interval,
         };
         cleaner.run(cleaner_pool).await;
     });
@@ -49,8 +49,10 @@ async fn main() {
     let app = Router::new()
         .route("/*id", post(insert).get(redirect))
         .layer(Extension(pool))
-        .layer(Extension(Duration::from_secs(30)))
-        .layer(Extension(ExcessCleaner { limit: 5 }));
+        .layer(Extension(options.expiration))
+        .layer(Extension(ExcessCleaner {
+            limit: options.list_size,
+        }));
     Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
         .serve(app.into_make_service())
         .await
