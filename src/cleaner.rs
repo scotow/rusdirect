@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use log::error;
 use sqlx::SqlitePool;
 
 use crate::include_query;
@@ -11,10 +12,12 @@ pub struct ExpirationCleaner {
 impl ExpirationCleaner {
     pub async fn run(&self, pool: SqlitePool) {
         loop {
-            sqlx::query(include_query!("clear_expired"))
+            if let Err(err) = sqlx::query(include_query!("clear_expired"))
                 .execute(&pool)
                 .await
-                .unwrap();
+            {
+                error!("expired redirections clean failure: {}", err);
+            }
             tokio::time::sleep(self.interval).await;
         }
     }
@@ -27,10 +30,12 @@ pub struct ExcessCleaner {
 
 impl ExcessCleaner {
     pub async fn run(&self, pool: &SqlitePool) {
-        sqlx::query(include_query!("clear_excess"))
+        if let Err(err) = sqlx::query(include_query!("clear_excess"))
             .bind(self.limit as i64)
             .execute(pool)
             .await
-            .unwrap();
+        {
+            error!("excess redirections clean failure: {}", err);
+        }
     }
 }

@@ -5,22 +5,25 @@ use std::time::{Duration, SystemTime};
 use axum::http::{StatusCode, Uri};
 use axum::response::Redirect;
 use axum::{routing::post, Extension, Json, Router, Server};
+use clap::Parser;
 use serde::Deserialize;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 
-use crate::cleaner::{ExcessCleaner, ExpirationCleaner};
-use crate::error::Error;
-
-mod cleaner;
-mod error;
-mod misc;
-mod query;
+use rusdirect::cleaner::{ExcessCleaner, ExpirationCleaner};
+use rusdirect::error::Error;
+use rusdirect::exit_error;
+use rusdirect::include_query;
+use rusdirect::options::Options;
 
 #[tokio::main]
 async fn main() {
+    let options = Options::parse();
+    env_logger::Builder::new()
+        .filter_level(options.log_level)
+        .init();
+
     let pool = SqlitePoolOptions::new()
-        // .max_connections(1)
         .connect_with(
             SqliteConnectOptions::new()
                 .filename("rusdirect.db")
@@ -28,11 +31,11 @@ async fn main() {
                 .busy_timeout(Duration::from_secs(30)),
         )
         .await
-        .unwrap_or_else(|err| exit_error!("Cannot create database pool: {}", err));
+        .unwrap_or_else(|err| exit_error!("database pool creation failure: {}", err));
     sqlx::query(include_query!("migration"))
         .execute(&pool)
         .await
-        .unwrap_or_else(|err| exit_error!("Cannot run migration query: {}", err));
+        .unwrap_or_else(|err| exit_error!("database migration failure: {}", err));
 
     let cleaner_pool = pool.clone();
     tokio::task::spawn(async move {
@@ -46,11 +49,11 @@ async fn main() {
         .route("/*id", post(insert).get(redirect))
         .layer(Extension(pool))
         .layer(Extension(Duration::from_secs(30)))
-        .layer(Extension(ExcessCleaner { limit: 16384 }));
+        .layer(Extension(ExcessCleaner { limit: 5 }));
     Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
         .serve(app.into_make_service())
         .await
-        .unwrap();
+        .unwrap_or_else(|err| exit_error!("http server start failure: {}", err));
 }
 
 #[derive(Deserialize, Debug)]
@@ -71,7 +74,7 @@ async fn insert(
         .bind(
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .map_err(|err| Error::ExpirationCalculationFailure(err))?
                 .add(duration)
                 .as_secs() as i64,
         )
