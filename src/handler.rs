@@ -19,8 +19,9 @@ pub async fn insert(
     Extension(cleaner): Extension<ExcessCleaner>,
     req: ContentLengthLimit<RedirectionRequest, 2048>,
 ) -> Result<StatusCode, Error> {
+    let path = req.path.as_deref().unwrap_or("");
     sqlx::query(include_query!("insert_redirection"))
-        .bind(&req.path)
+        .bind(path)
         .bind(&req.target)
         .bind(
             SystemTime::now()
@@ -35,10 +36,7 @@ pub async fn insert(
             warn!("database access failure: {}", err);
             Error::DatabaseConnectionFailure(err)
         })?;
-    info!(
-        "redirection from \"{}\" to \"{}\" added",
-        &req.path, &req.target
-    );
+    info!("redirection from \"{}\" to \"{}\" added", path, &req.target);
 
     cleaner.run(&pool).await;
 
@@ -57,12 +55,16 @@ pub async fn redirect(
         .map_err(|err| {
             warn!("database access failure: {}", err);
             Error::DatabaseConnectionFailure(err)
-        })?;
+        })?
+        .map(|(res,)| res);
 
     match target {
-        Some(target) => {
-            info!("redirection from \"{}\" to \"{}\" proceed", path, target.0);
-            Ok(Ok(Redirect::temporary(&target.0)))
+        Some(mut target) => {
+            if !target.starts_with("http://") && !target.starts_with("https://") {
+                target = format!("http://{}", target);
+            }
+            info!("redirection from \"{}\" to \"{}\" proceed", path, &target);
+            Ok(Ok(Redirect::temporary(&target)))
         }
         None => {
             trace!("redirection request from \"{}\" not found", path);

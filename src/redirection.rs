@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct RedirectionRequest {
-    pub path: String,
+    pub path: Option<String>,
     pub target: String,
 }
 
