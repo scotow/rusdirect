@@ -53,7 +53,7 @@ async fn main() {
         .layer(Extension(ExcessCleaner {
             limit: options.list_size,
         }));
-    Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
+    Server::bind(&SocketAddr::from((options.address, options.port)))
         .serve(app.into_make_service())
         .await
         .unwrap_or_else(|err| exit_error!("http server start failure: {}", err));
